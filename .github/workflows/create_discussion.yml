@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create Discussion
+      - name: Create Discussion and Update Project
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -33,97 +33,271 @@ jobs:
               return;
             }
 
-            // Skip if we've already created a discussion for this issue
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-            });
+            // ------------------------------------------------------------
+            // Configuration
+            // ------------------------------------------------------------
 
-            const existingComment = comments.find(comment =>
-              comment.user.login === "github-actions[bot]" &&
-              comment.body.includes("A discussion has been created for this topic:")
-            );
+            const projectId = "PVT_kwDOACVtRM4BZmze";
 
-            if (existingComment) {
-              core.info("Discussion already exists for this issue. Skipping.");
+            const roadmapCategoryFieldId =
+              "PVTSSF_lADOACVtRM4BZmzezhUkS1M";
+
+            const roadmapCategoryOptions = {
+              "AI & Cloud": "9282166a",
+              "Performance & Observability": "9ce83f9d",
+              "Extensibility/Ecosystem": "478d0b17",
+
+              // Project option is named "Developer/DBA Experience"
+              // while the GitHub issue label is "Developer / DBA Experience"
+              "Developer / DBA Experience": "8a5d08e5"
+            };
+
+            const roadmapCategoryOptionId =
+              roadmapCategoryOptions[labelName];
+
+            if (!roadmapCategoryOptionId) {
+              core.setFailed(
+                `No Roadmap Category mapping exists for label "${labelName}".`
+              );
               return;
             }
 
-            // Look up the repository's discussion categories
-            const { repository } = await github.graphql(`
-              query($owner: String!, $repo: String!) {
-                repository(owner: $owner, name: $repo) {
-                  id
-                  discussionCategories(first: 100) {
-                    nodes {
-                      id
-                      name
+            // ------------------------------------------------------------
+            // Check whether the discussion was already created
+            // ------------------------------------------------------------
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+              }
+            );
+
+            const existingComment = comments.find(comment =>
+              comment.user.login === "github-actions[bot]" &&
+              comment.body.includes(
+                "A discussion has been created for this topic:"
+              )
+            );
+
+            if (existingComment) {
+              core.info(
+                "Discussion already exists for this issue. Skipping discussion creation."
+              );
+            } else {
+
+              // ----------------------------------------------------------
+              // Look up repository discussion categories
+              // ----------------------------------------------------------
+
+              const { repository } = await github.graphql(`
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                    discussionCategories(first: 100) {
+                      nodes {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              `, {
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+
+              // Find the discussion category matching the issue label
+              const discussionCategory =
+                repository.discussionCategories.nodes.find(
+                  c => c.name === labelName
+                );
+
+              if (!discussionCategory) {
+                core.setFailed(
+                  `No discussion category named "${labelName}" exists.`
+                );
+                return;
+              }
+
+              // Replace any leading [Something] tags with [Discussion]
+              const title =
+                issue.title.replace(
+                  /^(\[[^\]]+\]\s*)+/,
+                  "[Discussion] "
+                );
+
+              const body = [
+                `This discussion was automatically created from **Issue #${issue.number}**.`,
+                ``,
+                `**Original Issue:** ${issue.html_url}`,
+                ``,
+                `Please use this discussion for community feedback and conversation. The issue remains the authoritative tracking item.`,
+              ].join("\n");
+
+              // ----------------------------------------------------------
+              // Create the discussion
+              // ----------------------------------------------------------
+
+              const result = await github.graphql(`
+                mutation(
+                  $repositoryId: ID!,
+                  $categoryId: ID!,
+                  $title: String!,
+                  $body: String!
+                ) {
+                  createDiscussion(
+                    input: {
+                      repositoryId: $repositoryId
+                      categoryId: $categoryId
+                      title: $title
+                      body: $body
+                    }
+                  ) {
+                    discussion {
+                      url
+                    }
+                  }
+                }
+              `, {
+                repositoryId: repository.id,
+                categoryId: discussionCategory.id,
+                title,
+                body
+              });
+
+              const discussionUrl =
+                result.createDiscussion.discussion.url;
+
+              // ----------------------------------------------------------
+              // Add link back to the issue
+              // ----------------------------------------------------------
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body:
+                  `💬 A discussion has been created in **${labelName}**:\n\n` +
+                  `${discussionUrl}\n\n` +
+                  `Please continue community discussion there while this issue remains the authoritative tracking item.`
+              });
+
+              core.info(`Discussion created: ${discussionUrl}`);
+            }
+
+            // ------------------------------------------------------------
+            // Add issue to Community Roadmap project
+            // ------------------------------------------------------------
+
+            const projectItems = await github.graphql(`
+              query($org: String!, $number: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                            number
+                            repository {
+                              name
+                              owner {
+                                login
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
               }
             `, {
-              owner: context.repo.owner,
-              repo: context.repo.repo
+              org: "mysql",
+              number: 2
             });
 
-            // Find the discussion category whose name matches the label
-            const category = repository.discussionCategories.nodes.find(
-              c => c.name === labelName
-            );
+            const existingProjectItem =
+              projectItems.organization.projectV2.items.nodes.find(
+                item =>
+                  item.content &&
+                  item.content.id === issue.node_id
+              );
 
-            if (!category) {
-              core.setFailed(`No discussion category named "${labelName}" exists.`);
-              return;
+            let projectItemId;
+
+            if (existingProjectItem) {
+              projectItemId = existingProjectItem.id;
+              core.info(
+                `Issue #${issue.number} is already in Community Roadmap.`
+              );
+            } else {
+              const addedItem = await github.graphql(`
+                mutation(
+                  $projectId: ID!,
+                  $contentId: ID!
+                ) {
+                  addProjectV2ItemById(
+                    input: {
+                      projectId: $projectId
+                      contentId: $contentId
+                    }
+                  ) {
+                    item {
+                      id
+                    }
+                  }
+                }
+              `, {
+                projectId,
+                contentId: issue.node_id
+              });
+
+              projectItemId =
+                addedItem.addProjectV2ItemById.item.id;
+
+              core.info(
+                `Issue #${issue.number} added to Community Roadmap.`
+              );
             }
 
-            // Replace any leading [Something] tags with [Discussion]
-            const title = issue.title.replace(/^(\[[^\]]+\]\s*)+/, "[Discussion] ");
+            // ------------------------------------------------------------
+            // Set Roadmap Category
+            // ------------------------------------------------------------
 
-            const body = [
-              `This discussion was automatically created from **Issue #${issue.number}**.`,
-              ``,
-              `**Original Issue:** ${issue.html_url}`,
-              ``,
-              `Please use this discussion for community feedback and conversation. The issue remains the authoritative tracking item.`,
-            ].join("\n");
-
-            // Create the discussion
-            const result = await github.graphql(`
+            await github.graphql(`
               mutation(
-                $repositoryId: ID!,
-                $categoryId: ID!,
-                $title: String!,
-                $body: String!
+                $projectId: ID!,
+                $itemId: ID!,
+                $fieldId: ID!,
+                $optionId: String!
               ) {
-                createDiscussion(
+                updateProjectV2ItemFieldValue(
                   input: {
-                    repositoryId: $repositoryId
-                    categoryId: $categoryId
-                    title: $title
-                    body: $body
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: {
+                      singleSelectOptionId: $optionId
+                    }
                   }
                 ) {
-                  discussion {
-                    url
+                  projectV2Item {
+                    id
                   }
                 }
               }
             `, {
-              repositoryId: repository.id,
-              categoryId: category.id,
-              title: title,
-              body: body
+              projectId,
+              itemId: projectItemId,
+              fieldId: roadmapCategoryFieldId,
+              optionId: roadmapCategoryOptionId
             });
 
-            const discussionUrl = result.createDiscussion.discussion.url;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: `💬 A discussion has been created in **${labelName}**:\n\n${discussionUrl}\n\nPlease continue community discussion there while this issue remains the authoritative tracking item.`
-            });
-
-            core.info(`Discussion created: ${discussionUrl}`);
+            core.info(
+              `Roadmap Category set to "${labelName}" for issue #${issue.number}.`
+            );
