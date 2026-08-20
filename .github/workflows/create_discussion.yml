@@ -154,6 +154,21 @@ jobs:
       # ================================================================
       # Add the Issue to Community Roadmap and set Roadmap Category
       # ================================================================
+      - name: Test Project Token
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const { viewer } = await github.graphql(`
+              query {
+                viewer {
+                  login
+                }
+              }
+            `);
+
+            core.info(`PROJECT_TOKEN is authenticating as: ${viewer.login}`);
+          
       - name: Add Issue to Community Roadmap
         uses: actions/github-script@v7
         with:
