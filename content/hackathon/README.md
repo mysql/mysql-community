@@ -12,7 +12,7 @@ You can deploy the infrastructure through OCI Resource Manager using the same mo
 
 This guide uses the [stack ZIP](releases/oci-hackathon-starterkit-stack.zip) included in this folder.
 
-[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://raw.githubusercontent.com/mysql/mysql-community/main/content/hackathon/releases/oci-hackathon-starterkit-stack.zip)
+[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https%3A%2F%2Fgithub.com%2Fmysql%2Fmysql-community%2Fraw%2Frefs%2Fheads%2Fmain%2Fcontent%2Fhackathon%2Freleases%2Foci-hackathon-starterkit-stack.zip)
 
 For more background, see the [Starter Kit wiki](https://github.com/lefred/oci-hackathon-starterkit/wiki).
 
