@@ -1,0 +1,411 @@
+title: "Hackathon Starter Kit on OCI"
+description: "Hackathon Starter Kit on OCI using Compute, MySQL HeatWave, and Autonomous Database instances"
+schemaVersion: 1.3.0
+version: "2025112601"
+locale: "en"
+
+
+variableGroups:
+  - title: "General Configuration"
+    visible: false
+    variables:
+      - tenancy_ocid
+      - compartment_ocid
+      - region
+      - ssh_authorized_keys_path
+      - ssh_private_key_path
+      - private_key_path
+      - dns_label
+      - fingerprint
+      - label_prefix
+      - node_image_id
+      - user_ocid
+      - web_instance_name
+
+  - title: Shapes
+    visible: true
+    variables:
+      - node_shape
+      - node_flex_shape_ocpus
+      - node_flex_shape_memory
+
+  - title: Network
+    visible: true
+    variables:
+      - vcn
+      - vcn_cidr
+
+  - title: Database Selection
+    visible: true
+    variables:
+      - database_deployment
+
+  - title: MySQL HeatWave Credentials
+    visible:
+      or:
+        - eq:
+          - database_deployment
+          - MySQL HeatWave
+        - eq:
+          - database_deployment
+          - Both
+    variables:
+      - admin_username
+      - admin_password
+
+  - title: MySQL HeatWave DBSystem
+    visible:
+      or:
+        - eq:
+          - database_deployment
+          - MySQL HeatWave
+        - eq:
+          - database_deployment
+          - Both
+    variables:
+      - useCredits
+      - mysql_shape
+      - mysql_heatwave_display_name
+
+  - title: Autonomous Database
+    visible:
+      or:
+        - eq:
+          - database_deployment
+          - Autonomous DB
+        - eq:
+          - database_deployment
+          - Both
+    variables:
+      - autonomous_database_name
+      - autonomous_database_display_name
+      - autonomous_database_compute_count
+      - autonomous_database_storage_size_in_gb
+      - autonomous_database_admin_password
+
+  - title: Use Existing Infrastructure
+    visible: true
+    variables:
+      - useExistingInfra
+      - existing_vcn_ocid
+      - existing_internet_gateway_ocid
+      - existing_nat_gateway_ocid
+      - existing_public_route_table_ocid
+      - existing_public_security_list_ocid
+      - existing_public_security_list_http_ocid
+      - existing_public_subnet_ocid
+      - existing_mds_instance_ocid
+      - existing_private_route_table_ocid
+      - existing_private_security_list_ocid
+      - existing_private_subnet_ocid
+
+
+variables:
+  region:
+    type: oci:identity:region:name
+    visible: false
+    required: true
+    title: ${Messages.solutionsHub.genericVariables.region.title()}
+    description: ${Messages.solutionsHub.genericVariables.region.description()}
+
+  useCredits:
+    title: Use your credits for a more powerful MySQL HeatWave DBSystem
+    type: boolean
+    default: false
+
+  database_deployment:
+    type: enum
+    required: true
+    title: Databases to Deploy
+    description: Choose whether to deploy MySQL HeatWave, Autonomous Database, or both.
+    enum:
+      - MySQL HeatWave
+      - Autonomous DB
+      - Both
+    default: Both
+
+  useExistingInfra:
+    title: Use Existing Infrastructure Resources
+    type: boolean
+    default: false
+
+  mysql_shape:
+    type: string
+    visible:
+      and:
+        - ${useCredits}
+        - or:
+          - eq:
+            - database_deployment
+            - MySQL HeatWave
+          - eq:
+            - database_deployment
+            - Both
+    title: MySQL HeatWave Shape
+    default: "MySQL.8"
+
+  mysql_heatwave_display_name:
+    type: string
+    required: false
+    default: "Hackathon MySQL HeatWave"
+    title: MySQL HeatWave Instance Name
+    description: Display name for the MySQL HeatWave DB System.
+
+  autonomous_database_name:
+    type: string
+    required: true
+    default: "HACKATHONADB"
+    title: Autonomous Database Name
+    description: Unique database name for the Autonomous Database. It must start with a letter and contain only letters and numbers.
+    pattern: "^[A-Za-z][A-Za-z0-9]{0,29}$"
+
+  autonomous_database_display_name:
+    type: string
+    required: false
+    default: "Hackathon Autonomous Database"
+    title: Autonomous Database Display Name
+
+  autonomous_database_compute_count:
+    type: number
+    required: true
+    minimum: 2
+    default: 2
+    title: Autonomous Database ECPUs
+    description: The smallest standard paid Autonomous Database serverless configuration uses 2 ECPUs.
+
+  autonomous_database_storage_size_in_gb:
+    type: number
+    required: true
+    minimum: 20
+    default: 20
+    title: Autonomous Database Storage (GB)
+    description: Storage for the paid Autonomous Database. The minimum is 20 GB.
+
+  autonomous_database_admin_password:
+    type: password
+    required: true
+    title: Autonomous Database ADMIN Password
+    description: Password for the Autonomous Database ADMIN user.
+    pattern: "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\\\"\\\\|,.<>\\/?]).{8,32}$"
+
+  node_shape:
+    type: oci:core:instanceshape:name
+    title: "Select a shape for the Compute Instance"
+    dependsOn:
+      compartmentId: compartment_ocid
+
+  node_flex_shape_memory:
+    type: number
+    required: false
+    minimum: 1
+    maximum: 24
+    multipleOf: 1
+    default: 4
+    title: "Flex Shape Memory (GB)"
+    description: "Choose number GB for Flex Shape Memory."
+    visible:
+      and:
+        - or:
+          - eq:
+            - node_shape
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E5.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard3.Flex"
+
+  node_flex_shape_ocpus:
+    type: number
+    required: false
+    minimum: 1
+    maximum: 4
+    multipleOf: 1
+    default: 1
+    title: "Flex Shape OCPUs"
+    description: "Choose number of OCPUs for Flex Shape."
+    visible:
+      and:
+        - or:
+          - eq:
+            - node_shape
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E5.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard3.Flex"
+
+  existing_vcn_ocid:
+    type: oci:core:vcn:id
+    visible: ${useExistingInfra}
+    title: VCN OCID
+    description: OCID of existing VCN to use
+    dependsOn:
+      compartmentId: compartment_ocid
+  existing_internet_gateway_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Internet Gateway OCID
+    description: OCID of existing Internet Gateway to use
+  existing_nat_gateway_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: NAT Gateway OCID
+    description: OCID of existing NAT Gateway to use
+  existing_public_route_table_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Public Routing Table OCID
+    description: OCID of existing Public Routing Table to use
+  existing_public_security_list_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Public Security List OCID
+    description: OCID of existing Public Security List (ssh access) to use
+  existing_public_security_list_http_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: HTTP Public Security List OCID
+    description: OCID of existing HTTP Public Security List to use
+  existing_public_subnet_ocid:
+    type: oci:core:subnet:id
+    dependsOn:
+      compartmentId: compartment_ocid
+      vcnId: existing_vcn_ocid
+    visible: ${useExistingInfra}
+    title: Public Subnet OCID
+    description: OCID of existing Public Subnet to use
+  existing_mds_instance_ocid:
+    type: oci:mysql:dbsystem:id
+    visible: ${useExistingInfra}
+    title: MySQL Database Service Instance OCID
+    description: OCID of existing MySQL Database Service Instance to use
+  existing_private_route_table_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Private Routing Table OCID
+    description: OCID of existing Private Routing Table to use
+  existing_private_security_list_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Private Security List OCID
+    description: OCID of existing Private Security List to use
+  existing_private_subnet_ocid:
+    type: oci:core:subnet:id
+    dependsOn:
+      compartmentId: compartment_ocid
+      vcnId: existing_vcn_ocid
+    visible: ${useExistingInfra}
+    title: Private Subnet OCID
+    description: OCID of existing Private Subnet to use
+
+
+
+  vcn:
+    type: string
+    visible: false
+    required: true
+    title: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_display_name.title()}
+    description: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_display_name.description()}
+
+  vcn_cidr:
+    type: string
+    visible: false
+    required: false
+    pattern: "^(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\/(3[0-2]|[1-2]?[0-9])$"
+    title: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_cidr.title()}
+    description: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_cidr.description()}
+
+  compartment_ocid:
+    type: oci:identity:compartment:id
+    required: true
+    title: Compartment
+    description: Compartment where you want to create the solution resources
+
+  admin_username:
+    type: string
+    required: false
+    visible:
+      or:
+        - eq:
+          - database_deployment
+          - MySQL HeatWave
+        - eq:
+          - database_deployment
+          - Both
+    default: "admin"
+    title: MySQL HeatWave Admin User's Name
+    description: Name for MySQL HeatWave Database Service's admin user
+    pattern: "^[a-zA-Z0-9_]{1,32}$"
+
+  admin_password:
+    type: password
+    required: true
+    visible:
+      or:
+        - eq:
+          - database_deployment
+          - MySQL HeatWave
+        - eq:
+          - database_deployment
+          - Both
+    title: MySQL HeatWave Admin Password
+    description: Password for the MySQL HeatWave admin user
+    pattern: "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\\\"\\\\|,.<>\\/?]).{8,32}$"
+
+
+outputGroups:
+- title: "Webserver Public IP"
+  outputs:
+    - webserver_public_ip
+- title: "MySQL HeatWave Private IP"
+  outputs:
+    - mysql_heatwave_private_ip
+- title: "Autonomous Database"
+  outputs:
+    - autonomous_database_id
+    - autonomous_database_service_console_url
+- title: "SSH Private Key"
+  outputs:
+    - ssh_private_key
+
+outputs:
+  webserver_public_ip:
+    title: "Your new deployed Webserver Public IP"
+  mysql_heatwave_private_ip:
+    title: "MySQL HeatWave Private IP"
+    description: "Private IP of the MySQL HeatWave Cluster"
+  autonomous_database_id:
+    title: "Autonomous Database OCID"
+  autonomous_database_service_console_url:
+    title: "Autonomous Database Service Console URL"
+  ssh_private_key:
+    title: "Generated SSH private key"
+    sensitive: true

@@ -1,0 +1,39 @@
+# Oracle Cloud Infrastructure Authentication
+tenancy_ocid = "ocid1.tenancy.<REPLACE_ME>"
+user_ocid = "ocid1.user.oc1..<REPLACE_ME>"
+fingerprint= "<REPLACE_ME>"
+private_key_path = "<REPLACE_ME>.pem"
+
+# Region
+region = "<REPLACE_ME>" # example: eu-frankfurt-1
+
+# Compartment
+compartment_ocid = "ocid1.compartment.<REPLACE_ME>"
+# Keys Configration
+ssh_authorized_keys_path = "<REPLACE_ME>.pub"
+ssh_private_key_path = "<REPLACE_ME>"
+
+admin_password = "MyPassw0rd!"
+
+# Choose MySQL HeatWave, Autonomous DB, or Both.
+database_deployment = "Both"
+
+# Used when database_deployment is MySQL HeatWave or Both.
+mysql_heatwave_display_name = "Hackathon MySQL HeatWave"
+
+# Used when database_deployment is Autonomous DB or Both. The name must be unique in the tenancy.
+autonomous_database_name = "HACKATHONADB"
+autonomous_database_compute_count = 2
+autonomous_database_storage_size_in_gb = 20
+#autonomous_database_admin_password = "UseADifferentPassw0rd!"
+
+node_shape = "VM.Standard.E5.Flex"
+node_flex_shape_ocpus = 1
+node_flex_shape_memory = 4
+
+#existing_vcn_ocid = ""
+#existing_internet_gateway_ocid = ""
+#existing_public_route_table_ocid = ""
+#existing_public_security_list_ocid = ""
+#existing_private_security_list_ocid = ""
+#existing_public_subnet_ocid = ""
