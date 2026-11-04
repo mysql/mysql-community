@@ -2,6 +2,9 @@
 
 Get your hackathon project running on Oracle Cloud Infrastructure (OCI). The starter kit deploys the networking, compute, and optional databases you need to start building an application.
 
+> [!WARNING]
+> **Shut down cloud resources after use to avoid unexpected charges.** Once trial or promotional credits run out or expire, continued use of billable resources on a paid account can result in charges. Stop resources when you are not using them, and delete resources you no longer need. Stopped resources may still incur charges for storage or other retained components.
+
 ## What the starter kit deploys
 
 - **Networking:** A virtual cloud network (VCN), subnets, security lists, a NAT gateway, and an internet gateway.
@@ -814,5 +817,8 @@ Activate the project's virtual environment and install the SDK with `python -m p
 ### How do we clean up after the hackathon?
 
 Save your code and export any data you need, then run a **Destroy** job for the Resource Manager stack. This tears down the resources managed by that stack. See the [Destroy job instructions](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/create-job-destroy.htm).
+
+> [!WARNING]
+> **Shut down cloud resources after use to avoid unexpected charges.** Once trial or promotional credits run out or expire, continued use of billable resources on a paid account can result in charges. Stop resources when you are not using them, and delete resources you no longer need. Stopped resources may still incur charges for storage or other retained components.
 
 [Back to the table of contents](#follow-the-guide)
